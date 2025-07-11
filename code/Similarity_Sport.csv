@@ -1,0 +1,61 @@
+name,description,query,id,parentId,isFolder
+Similarity THA Vs Other,,"//Collect Distinct_THA
+MATCH (tha:NOC {NOC: 'THA'})<-[:IN_COUNTRY]-(a:ATHLETES)
+MATCH (a)-[:ATTEND_SPORT]->(s:SPORT)
+WITH COLLECT(DISTINCT s.Sport) AS thaiSports
+
+// Other NOC
+MATCH (noc:NOC)
+WHERE noc.NOC <> 'THA'
+MATCH (noc)<-[:IN_COUNTRY]-(ath:ATHLETES)
+MATCH (ath)-[:ATTEND_SPORT]->(s2:SPORT)
+WITH noc.NOC AS Country, thaiSports, COLLECT(DISTINCT s2.Sport) AS otherSports
+
+//similarity_Jaccard
+WITH Country, 
+     apoc.coll.intersection(thaiSports, otherSports) AS commonSports,
+     apoc.coll.union(thaiSports, otherSports) AS unionSports
+WITH Country, 
+     SIZE(commonSports) AS similarityScore, 
+     toFloat(SIZE(commonSports)) / SIZE(unionSports) * 100 AS similarityPercent, 
+     commonSports
+WHERE similarityScore > 0
+RETURN Country, similarityScore, similarityPercent, commonSports
+ORDER BY similarityPercent DESC
+LIMIT 3",0,,false
+Similarity THA Vs CHN,,"//Similarity THA Vs CHN
+// THA
+MATCH (tha:NOC {NOC: 'THA'})<-[:IN_COUNTRY]-(a:ATHLETES)
+MATCH (a)-[:ATTEND_SPORT]->(s:SPORT)
+WITH COLLECT(DISTINCT s.Sport) AS thaiSports
+
+// CHN
+MATCH (chi:NOC {NOC: 'CHN'})<-[:IN_COUNTRY]-(b:ATHLETES)
+MATCH (b)-[:ATTEND_SPORT]->(s2:SPORT)
+WITH thaiSports, COLLECT(DISTINCT s2.Sport) AS chnSports
+
+// Similarity Jaccard
+WITH apoc.coll.intersection(thaiSports, chnSports) AS commonSports,
+     apoc.coll.union(thaiSports, chnSports) AS unionSports
+RETURN SIZE(commonSports) AS similarityScore,
+       toFloat(SIZE(commonSports)) / SIZE(unionSports) * 100 AS similarityPercent,
+       commonSports
+",1,,false
+Similarity THA Vs USA,,"// Similarity THA Vs USA
+// THA
+MATCH (tha:NOC {NOC: 'THA'})<-[:IN_COUNTRY]-(a:ATHLETES)
+MATCH (a)-[:ATTEND_SPORT]->(s:SPORT)
+WITH COLLECT(DISTINCT s.Sport) AS thaiSports
+
+// USA
+MATCH (usa:NOC {NOC: 'USA'})<-[:IN_COUNTRY]-(b:ATHLETES)
+MATCH (b)-[:ATTEND_SPORT]->(s2:SPORT)
+WITH thaiSports, COLLECT(DISTINCT s2.Sport) AS usaSports
+
+// Similarity Jaccard
+WITH apoc.coll.intersection(thaiSports, usaSports) AS commonSports,
+     apoc.coll.union(thaiSports, usaSports) AS unionSports
+RETURN SIZE(commonSports) AS similarityScore,
+       toFloat(SIZE(commonSports)) / SIZE(unionSports) * 100 AS similarityPercent,
+       commonSports
+",2,,false
