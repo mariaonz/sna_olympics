@@ -1,0 +1,59 @@
+name,description,query,id,parentId,isFolder
+1) Add Weight to Country_Sport Based on Athlete Count,,"MATCH (c:NOC)<-[:IN_COUNTRY]-(a:ATHLETES)-[:ATTEND_SPORT]->(s:SPORT)
+WITH c, s, count(a) AS athleteCount
+MATCH (c)-[r:COUNTRY_ATTEND_SPORT]->(s)
+SET r.weight = athleteCount
+",0,1,false
+2) Verify_weight_assign,,"MATCH (:NOC)-[r:COUNTRY_ATTEND_SPORT]->(s:SPORT)
+RETURN s.Sport AS sport, r.weight
+ORDER BY r.weight DESC
+LIMIT 10;
+",2,1,false
+3) Project Graph to Run PageRank,,"CALL gds.graph.project(
+  'SportPopularityGraph',
+  ['NOC', 'SPORT'],
+  {
+    COUNTRY_ATTEND_SPORT: {
+      type: 'COUNTRY_ATTEND_SPORT',
+      properties: {
+        weight: {
+          property: 'weight'
+        }
+      }
+    }
+  }
+);
+",3,1,false
+4) Run PageRank,,"CALL gds.pageRank.stream('SportPopularityGraph', {
+  relationshipWeightProperty: 'weight'
+})
+YIELD nodeId, score
+WITH gds.util.asNode(nodeId) AS node, score
+WHERE 'SPORT' IN labels(node)
+RETURN node.Sport AS sport, round(score * 100) / 100.0 AS pagerank_score
+ORDER BY score DESC
+LIMIT 10;
+",4,1,false
+5) Write PageRank in property,,"CALL gds.pageRank.write('SportPopularityGraph', {
+  relationshipWeightProperty: 'weight',
+  writeProperty: 'pagerank'
+})
+YIELD nodePropertiesWritten, ranIterations, didConverge;
+",5,1,false
+6) Check pagerank data,,"MATCH (n:NOC)-[r:COUNTRY_ATTEND_SPORT]->(s:SPORT)
+RETURN 
+  s.Sport AS sport, 
+  COUNT(DISTINCT n) AS num_countries, 
+  SUM(r.weight) AS num_athletes,
+  round(s.pagerank * 100) / 100.0 AS pagerank_score
+ORDER BY pagerank_score DESC
+LIMIT 10;
+",6,1,false
+7) Export graphml to Gephi,,"CALL apoc.export.graphml.query(
+  ""MATCH (n:NOC)-[r:COUNTRY_ATTEND_SPORT]->(s:SPORT)
+   WHERE s.Sport IN ['Athletics', 'Swimming', 'Boxing', 'Judo', 'Football']
+   RETURN n, r, s"",
+  ""top5_sports.graphml"",
+  {useTypes: true}
+);
+",7,1,false
