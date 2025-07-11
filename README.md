@@ -24,14 +24,14 @@ To analyze the Olympic Games through the lens of Social Network Analysis (SNA), 
     - COUNTRY_ATTEND_SPORT: Country participates in a sport
     - COUNTRY_ATTEND_YEAR: Country participates in a specific year
 - Centrality Metrics: PageRank, Degree, Betweenness, Closeness, Eigenvector
-- Weighted Scoring: Medal Weighting (Gold = 3, Silver = 2, Bronze = 1)
+- Weighted Scoring: Medal Weighting (🥇Gold = 3, 🥈Silver = 2, 🥉Bronze = 1)
 - Similarity Analysis: Jaccard Index for inter-country sport profile similarity
 
 ## 📊 Network Analysis Result:
 - Top 5 Influential Olympic Sports Based on Athlete Participation
-- Sports Similarity Comparison with Thailand
 - Top Performing Countries by Weighted Medal Score
-- Most Influential Athletes by Eigenvector Centrality
-- Thailand's Medal Network Centrality Analysis
-- Most Influential Thai Athletes in Olympic Network
 - Smart NOC Strategy: Countries That Know Their Strengths Best
+- Sports Similarity Comparison with Thailand
+- Most Influential Thai Athletes in Olympic Network
+- Thailand's Medal Network Centrality Analysis
+
