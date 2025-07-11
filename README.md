@@ -1,5 +1,6 @@
 # Olympic Network Analysis Project 
 📘 Course: DADS7201 Social Network Analysis  
+  
 The study applies network science techniques to Olympic Games data using Neo4j, exploring athlete-country-sport dynamics through graph analysis.
 
 ## 🎯 Obejective:  
