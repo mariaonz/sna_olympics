@@ -76,7 +76,7 @@ Import and execute the following Cypher scripts to generate key insights:
     - 🥊 Somluck Kamsing, Thailand’s legendary boxer, appears as the most central figure based on betweenness centrality. 
 This indicates his strong connectivity across athlete clusters, likely due to participation over multiple years and intersecting events.
 7. Thailand's Medal Network Centrality Analysis
-    - Manut and Panipak stand out with the highest degree and betweenness, reflecting their diverse medal wins
+    - Panipak and Manut stand out with the highest degree and betweenness, reflecting their diverse medal wins
 and central roles in Thailand’s Olympic network.
 8. Compete Fair: Sports Without Giants
     - Thailand has strong potential in “fair-play” sports like weightlifting, football, and cycling, identified through a high Equity-Weighted Medal Score (EWMS). These events offer frequent opportunities and balanced competition, making them ideal targets for strategic focus.
