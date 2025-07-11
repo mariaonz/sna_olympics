@@ -28,6 +28,31 @@ To analyze the Olympic Games through the lens of Social Network Analysis (SNA), 
 - Weighted Scoring: Medal Weighting (🥇Gold = 3, 🥈Silver = 2, 🥉Bronze = 1)
 - Similarity Analysis: Jaccard Index for inter-country sport profile similarity
 
+## 🛠️ Tools Used:
+Neo4j | Gephi |   
+
+## 💻 How to Run Cypher Scripts in Neo4j  
+1. Import Dataset
+Download and import the main Olympic dataset into your Neo4j Desktop project:
+📄 [olympics_dataset.csv](https://github.com/mariaonz/sna_olympics/blob/main/olympics_dataset.csv)
+2. Set Up Schema
+Run the schema initialization script to define nodes and relationships:
+📄 [olympics_schema_cypher.cypher](https://github.com/mariaonz/sna_olympics/blob/main/code/olympics_schema_cypher.cypher)  
+3. Run Network Analysis Scripts
+Import and execute the following Cypher scripts to generate key insights:  
+    - 🥇 Top 5 Influential Olympic Sports Based on Athlete Participation
+[pagerank_top_influential_sports.csv](https://github.com/mariaonz/sna_olympics/blob/main/code/pagerank_top_influential_sports.csv)
+    - 🏅 Top Performing Countries by Weighted Medal Score
+[tbc]()
+    - 🧠 Smart NOC Strategy: Countries That Know Their Strengths Best
+[tbc]()
+    - 🤝 Sports Similarity Comparison with Thailand
+[Similarity_Sport.csv](https://github.com/mariaonz/sna_olympics/blob/main/code/Similarity_Sport.csv)
+    - 🥊 Most Influential Thai Athletes in Olympic Network
+[tbc]()
+    - 🏆 Thailand's Medal Network Centrality Analysis
+[tbc]()
+
 ## 📊 Network Analysis Result:
 - Top 5 Influential Olympic Sports Based on Athlete Participation
   - 🏃‍♂️ Athletics holds the highest influence in the Olympic network based on athlete participation, making it the most central and widely engaged sport across countries.
