@@ -1,0 +1,33 @@
+name,description,query,id,parentId,isFolder
+Graph show Thai athletes got medals,,"// Graph show Thai athletes got medals
+MATCH (a:ATHLETES)-[:IN_COUNTRY]->(:NOC {NOC:""THA""}),
+      (a)-[:ATHLETE_MEDAL]->(m:MEDAL),
+      (a)-[:ATTEND_SPORT]->(s:SPORT),
+      (a)-[:ATTEND_YEAR]->(y:YEAR)
+WHERE m.Medal IN ['Gold', 'Silver', 'Bronze']
+MERGE (a)-[r:WON {sport: s.Sport}]->(m)
+RETURN a, r, m
+",0,,false
+Count Medals,,"// Count Medals
+MATCH (a:ATHLETES)-[:IN_COUNTRY]->(:NOC {NOC:""THA""}),
+      (a)-[rel:ATHLETE_MEDAL]->(m:MEDAL)
+WHERE m.Medal IN ['Gold', 'Silver', 'Bronze']
+WITH a, m, id(rel) AS rel_id
+WITH a.Name AS Athlete,
+     COUNT(CASE WHEN m.Medal = 'Gold' THEN rel_id END) AS Gold,
+     COUNT(CASE WHEN m.Medal = 'Silver' THEN rel_id END) AS Silver,
+     COUNT(CASE WHEN m.Medal = 'Bronze' THEN rel_id END) AS Bronze,
+     COUNT(rel_id) AS Total
+
+// Collect sport 
+MATCH (a2:ATHLETES)-[:IN_COUNTRY]->(:NOC {NOC:""THA""}),
+      (a2)-[:ATTEND_SPORT]->(s:SPORT),
+      (a2)-[:ATTEND_YEAR]->(y:YEAR)
+WHERE a2.Name = Athlete
+WITH Athlete, Gold, Silver, Bronze, Total,
+     COLLECT(DISTINCT s.Sport) AS Sports,
+     COLLECT(DISTINCT y.Year) AS Years
+
+RETURN Athlete, Sports, Years, Gold, Silver, Bronze, Total
+ORDER BY Total DESC
+",1,,false
