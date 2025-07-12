@@ -1,0 +1,160 @@
+name,description,query,id,parentId,isFolder
+Create Node and Edge,,"// ----------------------------
+// ⚙️ PARAMETER CONFIGURATION
+// ----------------------------
+:param {
+  file_path_root: 'file:///', // ปรับเป็น path ที่เหมาะกับเครื่องของคุณ
+  file_0: 'olympics_dataset.csv',
+  idsToSkip: []
+};
+
+// ----------------------------
+// 📌 CONSTRAINT DEFINITIONS
+// ----------------------------
+CREATE CONSTRAINT Name_ATHLETES_uniq IF NOT EXISTS
+FOR (n:ATHLETES) REQUIRE n.Name IS UNIQUE;
+
+CREATE CONSTRAINT Year_YEAR_uniq IF NOT EXISTS
+FOR (n:YEAR) REQUIRE n.Year IS UNIQUE;
+
+CREATE CONSTRAINT NOC_NOC_uniq IF NOT EXISTS
+FOR (n:NOC) REQUIRE n.NOC IS UNIQUE;
+
+CREATE CONSTRAINT SportEvent_uniq IF NOT EXISTS
+FOR (n:SPORT_EVENT) REQUIRE n.key IS UNIQUE;
+
+CREATE CONSTRAINT Medal_MEDAL_uniq IF NOT EXISTS
+FOR (n:MEDAL) REQUIRE n.Medal IS UNIQUE;
+
+CREATE CONSTRAINT Participation_id_uniq IF NOT EXISTS
+FOR (n:PARTICIPATION) REQUIRE n.id IS UNIQUE;
+
+// ----------------------------
+// 🧱 NODE CREATION
+// ----------------------------
+LOAD CSV WITH HEADERS FROM ($file_path_root + $file_0) AS row
+WITH row
+WHERE row.Name IS NOT NULL AND NOT row.Name IN $idsToSkip
+CALL {
+  WITH row
+  MERGE (n:ATHLETES {Name: row.Name})
+  SET n.player_id = row.player_id
+} IN TRANSACTIONS OF 10000 ROWS;
+
+LOAD CSV WITH HEADERS FROM ($file_path_root + $file_0) AS row
+WITH row
+WHERE row.Year IS NOT NULL AND NOT row.Year IN $idsToSkip
+CALL {
+  WITH row
+  MERGE (n:YEAR {Year: toInteger(trim(row.Year))})
+} IN TRANSACTIONS OF 10000 ROWS;
+
+LOAD CSV WITH HEADERS FROM ($file_path_root + $file_0) AS row
+WITH row
+WHERE row.NOC IS NOT NULL AND NOT row.NOC IN $idsToSkip
+CALL {
+  WITH row
+  MERGE (n:NOC {NOC: row.NOC})
+} IN TRANSACTIONS OF 10000 ROWS;
+
+LOAD CSV WITH HEADERS FROM ($file_path_root + $file_0) AS row
+WITH row
+WHERE row.Sport IS NOT NULL AND row.Event IS NOT NULL AND NOT row.Sport IN $idsToSkip
+CALL {
+  WITH row
+  MERGE (n:SPORT_EVENT {key: row.Sport + ' - ' + row.Event})
+  SET n.Sport = row.Sport, n.Event = row.Event
+} IN TRANSACTIONS OF 10000 ROWS;
+
+LOAD CSV WITH HEADERS FROM ($file_path_root + $file_0) AS row
+WITH row
+WHERE row.Medal IS NOT NULL AND NOT row.Medal IN $idsToSkip
+CALL {
+  WITH row
+  MERGE (n:MEDAL {Medal: row.Medal})
+} IN TRANSACTIONS OF 10000 ROWS;
+
+// ----------------------------
+// 🔗 RELATIONSHIPS (NEW DESIGN)
+// ----------------------------
+LOAD CSV WITH HEADERS FROM ($file_path_root + $file_0) AS row
+WITH row
+WHERE row.NOC IS NOT NULL AND row.Sport IS NOT NULL AND row.Event IS NOT NULL AND row.Year IS NOT NULL
+CALL {
+  WITH row
+  MERGE (noc:NOC {NOC: row.NOC})
+  MERGE (event:SPORT_EVENT {key: row.Sport + ' - ' + row.Event})
+    SET event.Sport = row.Sport, event.Event = row.Event
+  MERGE (year:YEAR {Year: toInteger(trim(row.Year))})
+  MERGE (p:PARTICIPATION {id: row.NOC + '_' + row.Sport + '_' + row.Event + '_' + row.Year})
+    SET p.medal = row.Medal,
+        p.athlete_count = toInteger(row.AthleteCount)
+  MERGE (noc)-[:PARTICIPATED_IN]->(p)
+  MERGE (p)-[:IN_EVENT]->(event)
+  MERGE (p)-[:IN_YEAR]->(year)
+} IN TRANSACTIONS OF 10000 ROWS;
+
+// 👤 Optional: Connect ATHLETES
+LOAD CSV WITH HEADERS FROM ($file_path_root + $file_0) AS row
+WITH row
+WHERE row.Name IS NOT NULL AND row.Sport IS NOT NULL AND row.Event IS NOT NULL AND row.Year IS NOT NULL
+CALL {
+  WITH row
+  MATCH (a:ATHLETES {Name: row.Name})
+  MATCH (p:PARTICIPATION {id: row.NOC + '_' + row.Sport + '_' + row.Event + '_' + row.Year})
+  MERGE (a)-[:TOOK_PART_IN]->(p)
+} IN TRANSACTIONS OF 10000 ROWS;
+
+// 🥇 Connect ATHLETE & COUNTRY MEDAL if needed
+LOAD CSV WITH HEADERS FROM ($file_path_root + $file_0) AS row
+WITH row
+WHERE row.Medal IS NOT NULL
+CALL {
+  WITH row
+  MATCH (a:ATHLETES {Name: row.Name})
+  MATCH (m:MEDAL {Medal: row.Medal})
+  MERGE (a)-[:ATHLETE_MEDAL]->(m)
+} IN TRANSACTIONS OF 10000 ROWS;
+
+LOAD CSV WITH HEADERS FROM ($file_path_root + $file_0) AS row
+WITH row
+WHERE row.Medal IS NOT NULL
+CALL {
+  WITH row
+  MATCH (n:NOC {NOC: row.NOC})
+  MATCH (m:MEDAL {Medal: row.Medal})
+  MERGE (n)-[:COUNTRY_MEDAL]->(m)
+} IN TRANSACTIONS OF 10000 ROWS;",2,,FALSE
+Query for participation history-All:,,"// Query for participation history-All:
+MATCH (y:YEAR)
+OPTIONAL MATCH (n:NOC)-[:PARTICIPATED_IN]->(p1:PARTICIPATION)-[:IN_YEAR]->(y)
+WITH y, count(DISTINCT n) AS NOC_Count
+
+OPTIONAL MATCH (a:ATHLETES)-[:TOOK_PART_IN]->(p2:PARTICIPATION)-[:IN_YEAR]->(y)
+WITH y, NOC_Count, count(DISTINCT a) AS Athlete_Count
+
+OPTIONAL MATCH (:NOC)-[:PARTICIPATED_IN]->(p3:PARTICIPATION)-[:IN_YEAR]->(y),
+               (p3)-[:IN_EVENT]->(e:SPORT_EVENT)
+RETURN y.Year AS Year,
+       count(DISTINCT e) AS NumberOfSportEvents,
+       NOC_Count,
+       Athlete_Count
+ORDER BY Year ASC;
+",0,,FALSE
+Query for participation history-THA:,,"// Query for participation history-THA:
+MATCH (y:YEAR)
+OPTIONAL MATCH (n:NOC {NOC: ""THA""})-[:PARTICIPATED_IN]->(p1:PARTICIPATION)-[:IN_YEAR]->(y)
+WITH y, count(DISTINCT n) AS NOC_Count
+
+OPTIONAL MATCH (a:ATHLETES)-[:TOOK_PART_IN]->(p2:PARTICIPATION)-[:IN_YEAR]->(y),
+               (n:NOC {NOC: ""THA""})-[:PARTICIPATED_IN]->(p2)
+WITH y, NOC_Count, count(DISTINCT a) AS Athlete_Count
+
+OPTIONAL MATCH (n:NOC {NOC: ""THA""})-[:PARTICIPATED_IN]->(p3:PARTICIPATION)-[:IN_YEAR]->(y),
+               (p3)-[:IN_EVENT]->(e:SPORT_EVENT)
+RETURN y.Year AS Year,
+       count(DISTINCT e) AS NumberOfSportEvents,
+       NOC_Count,
+       Athlete_Count
+ORDER BY Year ASC;
+",1,,FALSE
