@@ -1,0 +1,34 @@
+name,description,query,id,parentId,isFolder
+Query for participation history-All:,,"// Query for participation history-All:
+MATCH (y:YEAR)
+OPTIONAL MATCH (n:NOC)-[:PARTICIPATED_IN]->(p1:PARTICIPATION)-[:IN_YEAR]->(y)
+WITH y, count(DISTINCT n) AS NOC_Count
+
+OPTIONAL MATCH (a:ATHLETES)-[:TOOK_PART_IN]->(p2:PARTICIPATION)-[:IN_YEAR]->(y)
+WITH y, NOC_Count, count(DISTINCT a) AS Athlete_Count
+
+OPTIONAL MATCH (:NOC)-[:PARTICIPATED_IN]->(p3:PARTICIPATION)-[:IN_YEAR]->(y),
+               (p3)-[:IN_EVENT]->(e:SPORT_EVENT)
+RETURN y.Year AS Year,
+       count(DISTINCT e) AS NumberOfSportEvents,
+       NOC_Count,
+       Athlete_Count
+ORDER BY Year ASC;
+",0,,FALSE
+Query for participation history-THA:,,"// Query for participation history-THA:
+MATCH (y:YEAR)
+OPTIONAL MATCH (n:NOC {NOC: ""THA""})-[:PARTICIPATED_IN]->(p1:PARTICIPATION)-[:IN_YEAR]->(y)
+WITH y, count(DISTINCT n) AS NOC_Count
+
+OPTIONAL MATCH (a:ATHLETES)-[:TOOK_PART_IN]->(p2:PARTICIPATION)-[:IN_YEAR]->(y),
+               (n:NOC {NOC: ""THA""})-[:PARTICIPATED_IN]->(p2)
+WITH y, NOC_Count, count(DISTINCT a) AS Athlete_Count
+
+OPTIONAL MATCH (n:NOC {NOC: ""THA""})-[:PARTICIPATED_IN]->(p3:PARTICIPATION)-[:IN_YEAR]->(y),
+               (p3)-[:IN_EVENT]->(e:SPORT_EVENT)
+RETURN y.Year AS Year,
+       count(DISTINCT e) AS NumberOfSportEvents,
+       NOC_Count,
+       Athlete_Count
+ORDER BY Year ASC;
+",1,,FALSE
