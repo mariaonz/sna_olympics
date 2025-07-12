@@ -1,0 +1,124 @@
+name,description,query,id,parentId,isFolder
+=== STEP 0: Indexes ===,,"// === STEP 0: Indexes ===
+CREATE INDEX athlete_id IF NOT EXISTS FOR (a:ATHLETE) ON (a.id);
+CREATE INDEX noc_code IF NOT EXISTS FOR (c:NOC) ON (c.code);
+CREATE INDEX sport_name IF NOT EXISTS FOR (s:SPORT) ON (s.name);
+CREATE INDEX medal_name IF NOT EXISTS FOR (m:MEDAL) ON (m.name);
+CREATE INDEX year_key IF NOT EXISTS FOR (y:YEAR) ON (y.year, y.season);
+",0,,FALSE
+=== STEP 1: Node MEDAL ===,,"// === STEP 1: Node MEDAL ===
+UNWIND ['gold', 'silver', 'bronze'] AS medal
+MERGE (:MEDAL {name: medal});
+",1,,FALSE
+"=== STEP 2: Node ATHLETE, NOC ==> IN_COUNTRY ===",,"// === STEP 2: Node ATHLETE, NOC ==> IN_COUNTRY ===
+CALL {
+  LOAD CSV WITH HEADERS FROM 'file:///olympics_dataset.csv' AS row
+  WITH row
+  WHERE row.player_id IS NOT NULL AND row.NOC IS NOT NULL
+  MERGE (a:ATHLETE {id: toInteger(row.player_id)})
+    ON CREATE SET a.name = toUpper(trim(row.Name)), a.sex = toUpper(trim(row.Sex))
+  MERGE (c:NOC {code: toUpper(trim(row.NOC))})
+    ON CREATE SET c.name = toUpper(trim(row.Team))
+  MERGE (a)-[:IN_COUNTRY]->(c)
+} IN TRANSACTIONS OF 1000 ROWS;",2,,FALSE
+=== STEP 3:  ATHLETE ==> SPORT ===,,"// === STEP 3:  ATHLETE ==> SPORT ===
+CALL {
+  LOAD CSV WITH HEADERS FROM 'file:///olympics_dataset.csv' AS row
+  WITH row
+  WHERE row.player_id IS NOT NULL AND row.Sport IS NOT NULL
+  MATCH (a:ATHLETE {id: toInteger(row.player_id)})
+  MERGE (s:SPORT {name: toUpper(trim(row.Sport))})
+  MERGE (a)-[:ATTEND_SPORT]->(s)
+} IN TRANSACTIONS OF 1000 ROWS;",3,,FALSE
+=== STEP 4: ATHLETE ==> YEAR ===,,"// === STEP 4: ATHLETE ==> YEAR ===
+CALL {
+  LOAD CSV WITH HEADERS FROM 'file:///olympics_dataset.csv' AS row
+  WITH row
+  WHERE row.player_id IS NOT NULL AND row.Year IS NOT NULL AND row.Season IS NOT NULL
+  MATCH (a:ATHLETE {id: toInteger(row.player_id)})
+  MERGE (y:YEAR {year: toInteger(row.Year), season: toUpper(trim(row.Season))})
+    SET y.city = toUpper(trim(row.City))
+  MERGE (a)-[:ATTEND_YEAR]->(y)
+} IN TRANSACTIONS OF 1000 ROWS;
+",4,,FALSE
+=== STEP 5:  ATHLETE_MEDAL ==> COUNTRY_MEDAL ===,,"// === STEP 5:  ATHLETE_MEDAL ==> COUNTRY_MEDAL ===
+CALL {
+  LOAD CSV WITH HEADERS FROM 'file:///olympics_dataset.csv' AS row
+  WITH row
+  WHERE row.player_id IS NOT NULL AND row.Medal IS NOT NULL AND row.NOC IS NOT NULL
+  MATCH (a:ATHLETE {id: toInteger(row.player_id)})
+  MATCH (c:NOC {code: toUpper(trim(row.NOC))})
+  MATCH (m:MEDAL {name: toLower(trim(row.Medal))})
+  MERGE (a)-[r:ATHLETE_MEDAL {
+    event: row.Event,
+    year: toInteger(row.Year),
+    city: toUpper(row.City)
+  }]->(m)
+  MERGE (c)-[cr:COUNTRY_MEDAL]->(m)
+    ON CREATE SET cr.count = 1
+    ON MATCH SET cr.count = cr.count + 1
+} IN TRANSACTIONS OF 1000 ROWS;
+
+",5,,FALSE
+=== STEP 6: WeightedScore COUNTRY  ===,,"// === STEP 6: WeightedScore COUNTRY  ===
+MATCH (c:NOC)-[:COUNTRY_MEDAL]->(m:MEDAL)
+WITH c, SUM(CASE WHEN m.name = 'gold' THEN 3 WHEN m.name = 'silver' THEN 2 WHEN m.name = 'bronze' THEN 1 ELSE 0 END) AS score
+SET c.WeightedScore = score;",6,,FALSE
+=== STEP 7:  score ==> COUNTRY_MEDAL,,"// === STEP 7:  score ==> COUNTRY_MEDAL
+MATCH (c:NOC)-[r:COUNTRY_MEDAL]->(m:MEDAL)
+SET r.score = CASE WHEN m.name = 'gold' THEN 3 WHEN m.name = 'silver' THEN 2 WHEN m.name = 'bronze' THEN 1 ELSE 0 END;
+",7,,FALSE
+"=== STEP 8:  WeightedScore Table (DISTINCT Medal: Sex, NOC, Year, Sport, Event)",,"// === STEP 8:  WeightedScore Table (DISTINCT Medal: Sex, NOC, Year, Sport, Event)
+LOAD CSV WITH HEADERS FROM 'file:///olympics_dataset.csv' AS row
+WITH 
+  toUpper(row.Sex) AS Sex,
+  toUpper(row.NOC) AS NOC,
+  toInteger(row.Year) AS Year,
+  toUpper(row.Sport) AS Sport,
+  toUpper(row.Event) AS Event,
+  toUpper(row.Medal) AS Medal
+WHERE Medal IN ['GOLD', 'SILVER', 'BRONZE']
+WITH DISTINCT Sex, NOC, Year, Sport, Event, Medal
+RETURN 
+  NOC AS Country,
+  COUNT(CASE WHEN Medal = 'GOLD' THEN 1 END) AS Gold,
+  COUNT(CASE WHEN Medal = 'SILVER' THEN 1 END) AS Silver,
+  COUNT(CASE WHEN Medal = 'BRONZE' THEN 1 END) AS Bronze,
+  COUNT(*) AS TotalMedals,
+  (COUNT(CASE WHEN Medal = 'GOLD' THEN 1 END) * 3 +
+   COUNT(CASE WHEN Medal = 'SILVER' THEN 1 END) * 2 +
+   COUNT(CASE WHEN Medal = 'BRONZE' THEN 1 END)) AS WeightedScore
+ORDER BY WeightedScore DESC
+LIMIT 5;
+",8,,FALSE
+=== STEP 9.1: Visualization,,"// === STEP 9.1: Visualization
+LOAD CSV WITH HEADERS FROM 'file:///olympics_dataset.csv' AS row
+WITH 
+  toUpper(row.Sex) AS Sex,
+  toUpper(row.NOC) AS NOC,
+  toInteger(row.Year) AS Year,
+  toUpper(row.Sport) AS Sport,
+  toUpper(row.Event) AS Event,
+  toUpper(row.Medal) AS Medal
+WHERE Medal IN ['GOLD', 'SILVER', 'BRONZE']  
+WITH DISTINCT Sex, NOC, Year, Sport, Event, Medal
+MERGE (c:NOC {code: NOC})
+MERGE (m:MEDAL {name: toLower(Medal)})
+MERGE (c)-[r:UNIQUE_COUNTRY_MEDAL]->(m)
+  ON CREATE SET r.count = 1
+  ON MATCH SET r.count = r.count + 1;
+",9,,FALSE
+=== STEP 9.2: Visualize Top 20,,"// === STEP 9.2: Visualize Top 20
+MATCH (c:NOC)-[r1:UNIQUE_COUNTRY_MEDAL]->(m1:MEDAL)
+WITH 
+  c,
+  SUM(CASE 
+    WHEN m1.name = 'gold' THEN r1.count * 3
+    WHEN m1.name = 'silver' THEN r1.count * 2
+    WHEN m1.name = 'bronze' THEN r1.count * 1
+    ELSE 0 END) AS WeightedScore
+ORDER BY WeightedScore DESC
+LIMIT 5
+MATCH (c)-[r:UNIQUE_COUNTRY_MEDAL]->(m:MEDAL)
+RETURN c, r, m;
+",10,,FALSE
